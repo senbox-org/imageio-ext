@@ -266,16 +266,37 @@
   </reporting>
 
 
-  <!--..................................-->
-  <!--    java.net Maven2 Repository    -->
-  <!--..................................-->
-  <!-- <distributionManagement>                                             -->
-  <!--  <repository>                                                        -->
-  <!--  <id>java.net-m2-repository</id>                                     -->
-  <!--      <url>java-net:/maven2-repository/trunk/www/repository/</url>    -->
-  <!--    </repository>                                                     -->
-  <!-- </distributionManagement>                                            -->
-    
+    <!--..................................-->
+    <!--    java.net Maven2 Repository    -->
+    <!--..................................-->
+    <distributionManagement>
+        <!--<repository>-->
+            <!--<id>snap-repo-public</id>-->
+            <!--<name>Public Maven Repository for SNAP</name>-->
+            <!--<url>http://nexus.senbox.net/nexus/content/repositories/releases/</url>-->
+            <!--<uniqueVersion>false</uniqueVersion>-->
+        <!--</repository>-->
+        <!--<snapshotRepository>-->
+            <!--<id>snap-repo-public</id>-->
+            <!--<name>Public Maven Snapshot Repository for SNAP</name>-->
+            <!--<url>http://nexus.senbox.net/nexus/content/repositories/snapshots/</url>-->
+            <!--<uniqueVersion>false</uniqueVersion>-->
+        <!--</snapshotRepository>-->
+        <repository>
+            <id>bc-mvn-repo-public</id>
+            <name>Public Maven Repository at Brockmann Consult</name>
+            <url>scp://www.brockmann-consult.de/var/www/www.brockmann-consult.de/mvn/os</url>
+            <uniqueVersion>false</uniqueVersion>
+        </repository>
+        <snapshotRepository>
+            <id>bc-mvn-repo-public</id>
+            <name>Public Maven Snapshot Repository at Brockmann Consult</name>
+            <url>scp://www.brockmann-consult.de/var/www/www.brockmann-consult.de/mvn/os</url>
+            <uniqueVersion>false</uniqueVersion>
+        </snapshotRepository>
+    </distributionManagement>
+
+
     
   <!-- ======================================================== -->
   <!--                 Developers and contributors              -->
@@ -326,6 +347,19 @@
         <enabled>true</enabled>
       </snapshots>
     </pluginRepository>
+        <pluginRepository>
+            <id>snap-repo-public</id>
+            <name>Public Maven Repository for SNAP</name>
+            <url>http://nexus.senbox.net/nexus/content/repositories/public/</url>
+            <releases>
+                <enabled>true</enabled>
+                <checksumPolicy>warn</checksumPolicy>
+            </releases>
+            <snapshots>
+                <enabled>true</enabled>
+                <checksumPolicy>warn</checksumPolicy>
+            </snapshots>
+        </pluginRepository>
   </pluginRepositories>
 
   
@@ -378,6 +412,32 @@
       <url>http://download.java.net/maven/2/</url>
       <layout>default</layout>
     </repository>
+        <repository>
+            <id>snap-repo-public</id>
+            <name>Public Maven Repository for SNAP</name>
+            <url>http://nexus.senbox.net/nexus/content/repositories/public/</url>
+            <releases>
+                <enabled>true</enabled>
+                <checksumPolicy>warn</checksumPolicy>
+            </releases>
+            <snapshots>
+                <enabled>true</enabled>
+                <checksumPolicy>warn</checksumPolicy>
+            </snapshots>
+        </repository>
+        <repository>
+            <id>bc-mvn-repo-http</id>
+            <name>Public Maven Repository at Brockmann Consult</name>
+            <url>http://www.brockmann-consult.de/mvn/os</url>
+            <releases>
+                <enabled>true</enabled>
+                <checksumPolicy>warn</checksumPolicy>
+            </releases>
+            <snapshots>
+                <enabled>true</enabled>
+                <checksumPolicy>warn</checksumPolicy>
+            </snapshots>
+        </repository>
   </repositories>
 
   <!--                                                                       -->
@@ -586,6 +646,12 @@
        <artifactId>wagon-webdav</artifactId>
        <version>1.0-beta-2</version>
      </extension>
+       
+     <extension>
+       <groupId>org.apache.maven.wagon</groupId>
+       <artifactId>wagon-ssh</artifactId>
+       <version>1.0-beta-7</version>
+     </extension>       
    </extensions>
   </build>
   
