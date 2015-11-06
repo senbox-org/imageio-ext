@@ -2143,17 +2143,8 @@ public class TIFFImageReader extends ImageReader {
     
     @Override
     public void dispose() {
-        if (this.decompressor != null) {
+        if(this.decompressor != null) {
             this.decompressor.dispose();
         }
-        this.layout = null;
-        if (this.theImage != null) {
-            this.theImage.flush();
-        }
-        this.theImage = null;
-        this.imageStartPosition = null;
-        this.imageMetadata = null;
-        this.imageReadParam = null;
-        this.stream = null;
     }
 }
