@@ -2109,5 +2109,12 @@ public class TIFFImageReader extends ImageReader {
         }
         
         return imageType.createBufferedImage(destWidth, destHeight);
-    }    
+    }
+    
+    @Override
+    public void dispose() {
+        if(this.decompressor != null) {
+            this.decompressor.dispose();
+        }
+    }
 }
