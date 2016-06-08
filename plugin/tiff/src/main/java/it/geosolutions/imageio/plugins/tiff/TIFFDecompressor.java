@@ -1975,7 +1975,7 @@ public abstract class TIFFDecompressor {
             }
             else {
                 its = ImageTypeSpecifier.createInterleaved(csGray,
-                                                     sourceBands,
+                                                     new int[] {0},
                                                      dataType,
                                                      false,
                                                      false);
