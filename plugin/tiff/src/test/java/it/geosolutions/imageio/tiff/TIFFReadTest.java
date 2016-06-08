@@ -1,7 +1,7 @@
 /*
  *    ImageI/O-Ext - OpenSource Java Image translation Library
  *    http://www.geo-solutions.it/
- *    (C) 2007 - 2015, GeoSolutions
+ *    (C) 2007 - 2016, GeoSolutions
  *
  *    This library is free software; you can redistribute it and/or
  *    modify it under the terms of the GNU Lesser General Public
@@ -597,62 +597,6 @@ public class TIFFReadTest extends Assert {
             // If an exception occurred the logger catch the exception and print
             // the message
             logger.log(Level.SEVERE, e.getMessage(), e);
-        } finally {
-
-            if (inputStream != null) {
-                inputStream.flush();
-                inputStream.close();
-            }
-
-            if (reader != null) {
-                reader.dispose();
-            }
-        }
-    }
-
-    @Test
-    public void readLZWWithHorizontalDifferencingPredictorOn16Bits() throws IOException {
-        // This image has been created from test.tif using the command:
-        // gdal_translate -OT UInt16 -co COMPRESS=LZW -co PREDICTOR=2 test.tif lzwtest.tif
-        final File file = TestData.file(this, "lzwtest.tif");
-
-        final TIFFImageReader reader = (TIFFImageReader) new TIFFImageReaderSpi()
-                .createReaderInstance();
-
-        FileImageInputStream inputStream = new FileImageInputStream(file);
-        try {
-            reader.setInput(inputStream);
-            BufferedImage image = reader.read(0);
-            image.flush();
-            image = null;
-        } finally {
-
-            if (inputStream != null) {
-                inputStream.flush();
-                inputStream.close();
-            }
-
-            if (reader != null) {
-                reader.dispose();
-            }
-        }
-    }
-
-    @Test
-    public void readDeflateWithHorizontalDifferencingPredictorOn16Bits() throws IOException {
-        // This image has been created from test.tif using the command:
-        // gdal_translate -OT UInt16 -co COMPRESS=DEFLATE -co PREDICTOR=2 test.tif deflatetest.tif
-        final File file = TestData.file(this, "deflatetest.tif");
-
-        final TIFFImageReader reader = (TIFFImageReader) new TIFFImageReaderSpi()
-                .createReaderInstance();
-
-        FileImageInputStream inputStream = new FileImageInputStream(file);
-        try {
-            reader.setInput(inputStream);
-            BufferedImage image = reader.read(0);
-            image.flush();
-            image = null;
         } finally {
 
             if (inputStream != null) {
