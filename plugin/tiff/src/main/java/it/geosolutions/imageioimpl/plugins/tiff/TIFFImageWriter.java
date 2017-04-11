@@ -89,7 +89,6 @@ import java.awt.color.ColorSpace;
 import java.awt.color.ICC_ColorSpace;
 import java.awt.image.BufferedImage;
 import java.awt.image.ColorModel;
-import java.awt.image.ComponentColorModel;
 import java.awt.image.ComponentSampleModel;
 import java.awt.image.DataBuffer;
 import java.awt.image.DataBufferByte;
@@ -296,6 +295,8 @@ public class TIFFImageWriter extends ImageWriter {
     boolean isWritingSequence = false;
 
     private boolean isBtiff = false;
+    
+    private boolean isPixelInterleaved = true;
 	
     /**
      * Converts a pixel's X coordinate into a horizontal tile index
@@ -599,8 +600,6 @@ public class TIFFImageWriter extends ImageWriter {
         //
         // Override values from metadata:
         //
-        //  planarConfiguration -> chunky (planar not supported on output)
-        //
         // Override values from metadata with image-derived values:
         // 
         //  bitsPerSample (if not bilivel)
@@ -618,6 +617,7 @@ public class TIFFImageWriter extends ImageWriter {
         // Override values from metadata with write param values:
         //
         //  compression
+        //  planarConfiguration
 
         // Use values from metadata if present for these fields,
         // otherwise use defaults:
@@ -632,25 +632,22 @@ public class TIFFImageWriter extends ImageWriter {
 
         BaselineTIFFTagSet base = BaselineTIFFTagSet.getInstance();
 
-        // If PlanarConfiguration field present, set value to chunky.
-
-        TIFFField f =
-            rootIFD.getTIFFField(BaselineTIFFTagSet.TAG_PLANAR_CONFIGURATION);
-        if(f != null &&
-           f.getAsInt(0) != BaselineTIFFTagSet.PLANAR_CONFIGURATION_CHUNKY) {
-            // XXX processWarningOccurred()
-            TIFFField planarConfigurationField =
-                new TIFFField(base.getTag(BaselineTIFFTagSet.TAG_PLANAR_CONFIGURATION),
-                              BaselineTIFFTagSet.PLANAR_CONFIGURATION_CHUNKY);
-            rootIFD.addTIFFField(planarConfigurationField);
+        int planarConf = BaselineTIFFTagSet.PLANAR_CONFIGURATION_CHUNKY;
+        if (param instanceof TIFFImageWriteParam) {
+            TIFFImageWriteParam tparam = (TIFFImageWriteParam) param;
+            this.isPixelInterleaved = tparam.isPixelInterleaved();
+            planarConf = isPixelInterleaved ? BaselineTIFFTagSet.PLANAR_CONFIGURATION_CHUNKY : BaselineTIFFTagSet.PLANAR_CONFIGURATION_PLANAR;
         }
+        TIFFField planarConfigurationField =
+                new TIFFField(base.getTag(BaselineTIFFTagSet.TAG_PLANAR_CONFIGURATION), planarConf);
+        rootIFD.addTIFFField(planarConfigurationField);
 
         char[] extraSamples = null;
 
         this.photometricInterpretation = -1;
         boolean forcePhotometricInterpretation = false;
 
-        f =
+       TIFFField f =
        rootIFD.getTIFFField(BaselineTIFFTagSet.TAG_PHOTOMETRIC_INTERPRETATION);
         if (f != null) {
             photometricInterpretation = f.getAsInt(0);
@@ -1473,18 +1470,19 @@ public class TIFFImageWriter extends ImageWriter {
                             rowsPerStrip);
             rootIFD.addTIFFField(rowsPerStripField);
 
+            int numStripes = isPixelInterleaved ? tilesDown : tilesDown * numBands;
             TIFFField stripOffsetsField =
                 new TIFFField(
                          base.getTag(BaselineTIFFTagSet.TAG_STRIP_OFFSETS),
                          isBtiff?TIFFTag.TIFF_LONG8:TIFFTag.TIFF_LONG,
-                         tilesDown);
+                         numStripes);
             rootIFD.addTIFFField(stripOffsetsField);
 
             TIFFField stripByteCountsField =
                 new TIFFField(
                          base.getTag(BaselineTIFFTagSet.TAG_STRIP_BYTE_COUNTS),
                          isBtiff?TIFFTag.TIFF_LONG8:TIFFTag.TIFF_LONG,
-                         tilesDown);
+                         numStripes);
             rootIFD.addTIFFField(stripByteCountsField);
         } else {
             this.isTiled = true;
@@ -1503,18 +1501,19 @@ public class TIFFImageWriter extends ImageWriter {
                               tileLength);
             rootIFD.addTIFFField(tileLengthField);
 
+            int numTiles = isPixelInterleaved ? tilesDown * tilesAcross : tilesDown * tilesAcross * numBands;
             TIFFField tileOffsetsField =
                 new TIFFField(
                          base.getTag(BaselineTIFFTagSet.TAG_TILE_OFFSETS),
                          isBtiff?TIFFTag.TIFF_LONG8:TIFFTag.TIFF_LONG,
-                         tilesDown*tilesAcross);
+                         numTiles);
             rootIFD.addTIFFField(tileOffsetsField);
 
             TIFFField tileByteCountsField =
                 new TIFFField(
                          base.getTag(BaselineTIFFTagSet.TAG_TILE_BYTE_COUNTS),
                          isBtiff?TIFFTag.TIFF_LONG8:TIFFTag.TIFF_LONG,
-                         tilesDown*tilesAcross);
+                         numTiles);
             rootIFD.addTIFFField(tileByteCountsField);
         }
 
@@ -1778,9 +1777,10 @@ public class TIFFImageWriter extends ImageWriter {
     }
 
     /**
-       @param tileRect The area to be written which might be outside the image.
+     * @param tileRect The area to be written which might be outside the image.
+     * @param imageIndex The band to be written. In pixel interleaved mode this is always <code>0</code>.
      */
-    private int writeTile(Rectangle tileRect, TIFFCompressor compressor)
+    private int writeTile(Rectangle tileRect, int imageIndex, TIFFCompressor compressor)
         throws IOException {
         // Determine the rectangle which will actually be written 
         // and set the padding flag. Padding will occur only when the
@@ -1907,6 +1907,15 @@ public class TIFFImageWriter extends ImageWriter {
                                          csm.getScanlineStride());
             }
         }
+        final int[] bandNums;
+        if (isPixelInterleaved) {
+            bandNums = new int[numBands];
+            for (int i = 0; i < bandNums.length; i++) {
+                bandNums[i] = i;
+            }
+        } else {
+            bandNums = new int[]{imageIndex};
+        }
         
         // Set offsets and skips based on source subsampling factors
         int xOffset = minX;
@@ -1922,14 +1931,14 @@ public class TIFFImageWriter extends ImageWriter {
         }
 
         // Convert X offset and skip from pixels to samples
-        xOffset *= numBands;
-        xSkip *= numBands;
+        xOffset *= bandNums.length;
+        xSkip *= bandNums.length;
 
         // Initialize sizes
         int samplesPerByte = 8/bitDepth;
-        int numSamples = width*numBands;
-        int bytesPerRow = hpixels*numBands;
-
+        int numSamples = width*bandNums.length;
+        int bytesPerRow = hpixels*bandNums.length;
+        
         // Update number of bytes per row.
         if (bitDepth < 8) {
             bytesPerRow = (bytesPerRow + samplesPerByte - 1)/samplesPerByte;
@@ -2000,7 +2009,8 @@ public class TIFFImageWriter extends ImageWriter {
                 int pixelStride = csm.getPixelStride();
 
                 // Copy the data into a contiguous pixel interleaved buffer.
-                for(int k = 0; k < numBands; k++) {
+                for (int b = 0; b < bandNums.length; b++) {
+                    int k = bandNums[b];
                     byte[] bandData = bankData[bankIndices[k]];
                     int lineOffset =
                         csm.getOffset(raster.getMinX() -
@@ -2012,7 +2022,7 @@ public class TIFFImageWriter extends ImageWriter {
                         int offset = lineOffset;
                         for(int i = 0; i < hpixels; i++) {
                             currTile[idx] = bandData[offset];
-                            idx += numBands;
+                            idx += bandNums.length;
                             offset += pixelStride;
                         }
                         lineOffset += lineStride;
@@ -2022,7 +2032,7 @@ public class TIFFImageWriter extends ImageWriter {
                 // Compressor and return.
                 return compressor.encode(currTile, 0,
                                          width, height, sampleSize,
-                                         width*numBands);
+                                         width * bandNums.length);
             }
         }
 
@@ -2040,12 +2050,12 @@ public class TIFFImageWriter extends ImageWriter {
                 System.out.println(csm.getNumBands());
                 System.out.println(csm.getPixelStride());
                 int[] bankIndices = csm.getBankIndices();
-                for(int b = 0; b < numBands; b++) {
-                    System.out.print(bankIndices[b]+" ");
+                for (int b = 0; b < bandNums.length; b++) {
+                    System.out.print(bankIndices[bandNums[b]]+" ");
                 }
                 int[] bandOffsets = csm.getBandOffsets();
-                for(int b = 0; b < numBands; b++) {
-                    System.out.print(bandOffsets[b]+" ");
+                for (int b = 0; b < bandNums.length; b++) {
+                    System.out.print(bandOffsets[bandNums[b]]+" ");
                 }
                 System.out.println("");
             }
@@ -2088,9 +2098,14 @@ public class TIFFImageWriter extends ImageWriter {
                 Rectangle rect = new Rectangle(minX, row, width, 1);
                 ras = image.getData(rect);
             }
-            if (sourceBands != null) {
+            if (isPixelInterleaved) {
+                if (sourceBands != null) {
+                    ras = ras.createChild(minX, row, width, 1, minX, row,
+                                          sourceBands);
+                }
+            } else {
                 ras = ras.createChild(minX, row, width, 1, minX, row,
-                                      sourceBands);
+                                                      new int[]{imageIndex});
             }
 
             if(sampleFormat ==
@@ -2194,57 +2209,60 @@ public class TIFFImageWriter extends ImageWriter {
                 break;
 
             case 8:
-				if (numBands == 1) {
-		                    if(isRescaling) {
-		                        for (int s = 0; s < numSamples; s += xSkip) {
-		                            currTile[tcount++] = scale0[samples[s]];
-		                        }
-		                    } else {
-		                        for (int s = 0; s < numSamples; s += xSkip) {
-		                            currTile[tcount++] = (byte)samples[s];
-		                        }
-		                    }
-				} else {
-		                    if(isRescaling) {
-		                        for (int s = 0; s < numSamples; s += xSkip) {
-		                            for (int b = 0; b < numBands; b++) {
-		                                currTile[tcount++] = scale[b][samples[s + b]];
-		                            }
-		                        }
-		                    } else {
-		                        for (int s = 0; s < numSamples; s += xSkip) {
-		                            for (int b = 0; b < numBands; b++) {
-		                                currTile[tcount++] = (byte)samples[s + b];
-		                            }
-		                        }
-		                    }
-				}
-		                break;
+                if (numBands == 1) {
+                    if (isRescaling) {
+                        for (int s = 0; s < numSamples; s += xSkip) {
+                            currTile[tcount++] = scale0[samples[s]];
+                        }
+                    } else {
+                        for (int s = 0; s < numSamples; s += xSkip) {
+                            currTile[tcount++] = (byte) samples[s];
+                        }
+                    }
+                } else {
+                    if (isRescaling) {
+                        for (int s = 0; s < numSamples; s += xSkip) {
+                            for (int b = 0; b < bandNums.length; b++) {
+                                int bi = bandNums[b];
+                                currTile[tcount++] = scale[bi][samples[s + b]];
+                            }
+                        }
+                    } else {
+                        for (int s = 0; s < numSamples; s += xSkip) {
+                            for (int b = 0; b < bandNums.length; b++) {
+                                currTile[tcount++] = (byte) samples[s + b];
+                            }
+                        }
+                    }
+                }
+                break;
 
             case 16:
                 // XXX Need to verify this rescaling for signed vs. unsigned.
                 if(isRescaling) {
                     if(stream.getByteOrder() == ByteOrder.BIG_ENDIAN) {
                         for (int s = 0; s < numSamples; s += xSkip) {
-                            for (int b = 0; b < numBands; b++) {
+                            for (int b = 0; b < bandNums.length; b++) {
                                 int sample = samples[s + b];
-                                currTile[tcount++] = scaleh[b][sample];
-                                currTile[tcount++] = scalel[b][sample];
+                                int bi = bandNums[b];
+                                currTile[tcount++] = scaleh[bi][sample];
+                                currTile[tcount++] = scalel[bi][sample];
                             }
                         }
                     } else { // ByteOrder.LITLE_ENDIAN
-                        for (int s = 0; s < numSamples; s += xSkip) {
-                            for (int b = 0; b < numBands; b++) {
+                    for (int s = 0; s < numSamples; s += xSkip) {
+                        for (int b = 0; b < bandNums.length; b++) {
                                 int sample = samples[s + b];
-                                currTile[tcount++] = scalel[b][sample];
-                                currTile[tcount++] = scaleh[b][sample];
+                                int bi = bandNums[b];
+                                currTile[tcount++] = scalel[bi][sample];
+                                currTile[tcount++] = scaleh[bi][sample];
                             }
                         }
                     }
                 } else {
                     if(stream.getByteOrder() == ByteOrder.BIG_ENDIAN) {
                         for (int s = 0; s < numSamples; s += xSkip) {
-                            for (int b = 0; b < numBands; b++) {
+                            for (int b = 0; b < bandNums.length; b++) {
                                 int sample = samples[s + b];
                                 currTile[tcount++] =
                                     (byte)((sample >>> 8) & 0xff);
@@ -2254,7 +2272,7 @@ public class TIFFImageWriter extends ImageWriter {
                         }
                     } else { // ByteOrder.LITLE_ENDIAN
                         for (int s = 0; s < numSamples; s += xSkip) {
-                            for (int b = 0; b < numBands; b++) {
+                            for (int b = 0; b < bandNums.length; b++) {
                                 int sample = samples[s + b];
                                 currTile[tcount++] =
                                     (byte)(sample & 0xff);
@@ -2271,7 +2289,7 @@ public class TIFFImageWriter extends ImageWriter {
                    BaselineTIFFTagSet.SAMPLE_FORMAT_FLOATING_POINT) {
                     if(stream.getByteOrder() == ByteOrder.BIG_ENDIAN) {
                         for (int s = 0; s < numSamples; s += xSkip) {
-                            for (int b = 0; b < numBands; b++) {
+                            for (int b = 0; b < bandNums.length; b++) {
                                 float fsample = fsamples[s + b];
                                 int isample = Float.floatToIntBits(fsample);
                                 currTile[tcount++] =
@@ -2286,7 +2304,7 @@ public class TIFFImageWriter extends ImageWriter {
                         }
                     } else { // ByteOrder.LITLE_ENDIAN
                         for (int s = 0; s < numSamples; s += xSkip) {
-                            for (int b = 0; b < numBands; b++) {
+                            for (int b = 0; b < bandNums.length; b++) {
                                 float fsample = fsamples[s + b];
                                 int isample = Float.floatToIntBits(fsample);
                                 currTile[tcount++] =
@@ -2305,18 +2323,19 @@ public class TIFFImageWriter extends ImageWriter {
                         // XXX Need to verify this for signed vs. unsigned.
                         // XXX The following gives saturated results when the
                         // original data are in the signed integer range.
-                        long[] maxIn = new long[numBands];
-                        long[] halfIn = new long[numBands];
+                        long[] maxIn = new long[bandNums.length];
+                        long[] halfIn = new long[bandNums.length];
                         long maxOut = (1L << (long)bitDepth) - 1L;
 
-                        for (int b = 0; b < numBands; b++) {
-                            maxIn[b] = ((1L << (long)sampleSize[b]) - 1L);
+                        for (int b = 0; b < bandNums.length; b++) {
+                            int bi = bandNums[b];
+                            maxIn[b] = ((1L << (long)sampleSize[bi]) - 1L);
                             halfIn[b] = maxIn[b]/2;
                         }
 
                         if(stream.getByteOrder() == ByteOrder.BIG_ENDIAN) {
                             for (int s = 0; s < numSamples; s += xSkip) {
-                                for (int b = 0; b < numBands; b++) {
+                                for (int b = 0; b < bandNums.length; b++) {
                                     long sampleOut =
                                         (samples[s + b]*maxOut + halfIn[b])/
                                         maxIn[b];
@@ -2332,7 +2351,7 @@ public class TIFFImageWriter extends ImageWriter {
                             }
                         } else { // ByteOrder.LITLE_ENDIAN
                             for (int s = 0; s < numSamples; s += xSkip) {
-                                for (int b = 0; b < numBands; b++) {
+                                for (int b = 0; b < bandNums.length; b++) {
                                     long sampleOut =
                                         (samples[s + b]*maxOut + halfIn[b])/
                                         maxIn[b];
@@ -2350,7 +2369,7 @@ public class TIFFImageWriter extends ImageWriter {
                     } else {
                         if(stream.getByteOrder() == ByteOrder.BIG_ENDIAN) {
                             for (int s = 0; s < numSamples; s += xSkip) {
-                                for (int b = 0; b < numBands; b++) {
+                                for (int b = 0; b < bandNums.length; b++) {
                                     int isample = samples[s + b];
                                     currTile[tcount++] =
                                         (byte)((isample & 0xff000000) >> 24);
@@ -2364,7 +2383,7 @@ public class TIFFImageWriter extends ImageWriter {
                             }
                         } else { // ByteOrder.LITLE_ENDIAN
                             for (int s = 0; s < numSamples; s += xSkip) {
-                                for (int b = 0; b < numBands; b++) {
+                                for (int b = 0; b < bandNums.length; b++) {
                                     int isample = samples[s + b];
                                     currTile[tcount++] =
                                         (byte)(isample & 0x000000ff);
@@ -2386,7 +2405,7 @@ public class TIFFImageWriter extends ImageWriter {
                    BaselineTIFFTagSet.SAMPLE_FORMAT_FLOATING_POINT) {
                     if(stream.getByteOrder() == ByteOrder.BIG_ENDIAN) {
                         for (int s = 0; s < numSamples; s += xSkip) {
-                            for (int b = 0; b < numBands; b++) {
+                            for (int b = 0; b < bandNums.length; b++) {
                                 double dsample = dsamples[s + b];
                                 long v = Double.doubleToLongBits(dsample);
                                 currTile[tcount++] =(byte)((v >>> 56) & 0xFF);
@@ -2401,7 +2420,7 @@ public class TIFFImageWriter extends ImageWriter {
                         }
                     } else { // ByteOrder.LITLE_ENDIAN
                         for (int s = 0; s < numSamples; s += xSkip) {
-                            for (int b = 0; b < numBands; b++) {
+                            for (int b = 0; b < bandNums.length; b++) {
                                 double dsample = dsamples[s + b];
                                 long v = Double.doubleToLongBits(dsample);
                                 currTile[tcount++] =(byte)((v >>> 0) & 0xFF);
@@ -2420,18 +2439,19 @@ public class TIFFImageWriter extends ImageWriter {
                         // XXX Need to verify this for signed vs. unsigned.
                         // XXX The following gives saturated results when the
                         // original data are in the signed integer range.
-                        long[] maxIn = new long[numBands];
-                        long[] halfIn = new long[numBands];
-                        long maxOut = (1L << (long)bitDepth) - 1L;
+                        long[] maxIn = new long[bandNums.length];
+                        long[] halfIn = new long[bandNums.length];
+                        long maxOut = (1L << (long) bitDepth) - 1L;
 
-                        for (int b = 0; b < numBands; b++) {
-                            maxIn[b] = ((1L << (long)sampleSize[b]) - 1L);
+                        for (int b = 0; b < bandNums.length; b++) {
+                            int bi = bandNums[b];
+                            maxIn[b] = ((1L << (long) sampleSize[bi]) - 1L);
                             halfIn[b] = maxIn[b]/2;
                         }
 
                         if(stream.getByteOrder() == ByteOrder.BIG_ENDIAN) {
                             for (int s = 0; s < numSamples; s += xSkip) {
-                                for (int b = 0; b < numBands; b++) {
+                                for (int b = 0; b < bandNums.length; b++) {
                                     long v =
                                         (samples[s + b]*maxOut + halfIn[b])/
                                         maxIn[b];
@@ -2447,7 +2467,7 @@ public class TIFFImageWriter extends ImageWriter {
                             }
                         } else { // ByteOrder.LITLE_ENDIAN
                             for (int s = 0; s < numSamples; s += xSkip) {
-                                for (int b = 0; b < numBands; b++) {
+                                for (int b = 0; b < bandNums.length; b++) {
                                     long v =
                                         (samples[s + b]*maxOut + halfIn[b])/
                                         maxIn[b];
@@ -2465,7 +2485,7 @@ public class TIFFImageWriter extends ImageWriter {
                     } else {
                         if(stream.getByteOrder() == ByteOrder.BIG_ENDIAN) {
                             for (int s = 0; s < numSamples; s += xSkip) {
-                                for (int b = 0; b < numBands; b++) {
+                                for (int b = 0; b < bandNums.length; b++) {
                                     long v = samples[s + b];
                                     currTile[tcount++] =(byte)((v >>> 56) & 0xFF);
                                     currTile[tcount++] =(byte)((v >>> 48) & 0xFF);
@@ -2479,7 +2499,7 @@ public class TIFFImageWriter extends ImageWriter {
                             }
                         } else { // ByteOrder.LITLE_ENDIAN
                             for (int s = 0; s < numSamples; s += xSkip) {
-                                for (int b = 0; b < numBands; b++) {
+                                for (int b = 0; b < bandNums.length; b++) {
                                     long v = samples[s + b];
                                     currTile[tcount++] =(byte)((v >>> 0) & 0xFF);
                                     currTile[tcount++] =(byte)((v >>> 8) & 0xFF);
@@ -2498,7 +2518,7 @@ public class TIFFImageWriter extends ImageWriter {
             }
         }
 
-        int[] bitsPerSample = new int[numBands];
+        int[] bitsPerSample = new int[bandNums.length];
         for (int i = 0; i < bitsPerSample.length; i++) {
             bitsPerSample[i] = bitDepth;
         }
@@ -2902,65 +2922,67 @@ public class TIFFImageWriter extends ImageWriter {
         this.totalPixels = tileWidth*tileLength*tilesDown*tilesAcross;
         this.pixelsDone = 0;
 
-        // Write the image, a strip or tile at a time
-        for (int tj = 0; tj < tilesDown; tj++) {
-            for (int ti = 0; ti < tilesAcross; ti++) {
-                long pos = stream.getStreamPosition();
+        int bandsToWrite = isPixelInterleaved ? 1 : this.numBands;
+        for (int imageIndex = 0; imageIndex < bandsToWrite; imageIndex++) {
+            // Write the image, a strip or tile at a time
+            for (int tj = 0; tj < tilesDown; tj++) {
+                for (int ti = 0; ti < tilesAcross; ti++) {
+                    long pos = stream.getStreamPosition();
 
-                // Write the (possibly compressed) tile data
+                    // Write the (possibly compressed) tile data
 
-                Rectangle tileRect =
-                    new Rectangle(sourceXOffset + ti*tileWidth*periodX,
-                                  sourceYOffset + tj*tileLength*periodY,
-                                  tileWidth*periodX,
-                                  tileLength*periodY);
-                // tileRect = tileRect.intersection(imageBounds); // XXX
+                    Rectangle tileRect =
+                            new Rectangle(sourceXOffset + ti * tileWidth * periodX,
+                                          sourceYOffset + tj * tileLength * periodY,
+                                          tileWidth * periodX,
+                                          tileLength * periodY);
+                    // tileRect = tileRect.intersection(imageBounds); // XXX
 
-                try {
-                    int byteCount = writeTile(tileRect, compressor);
+                    try {
+                        int byteCount = writeTile(tileRect, imageIndex, compressor);
 
-                    if(pos + byteCount > nextSpace) {
-                        nextSpace = pos + byteCount;
+                        if (pos + byteCount > nextSpace) {
+                            nextSpace = pos + byteCount;
+                        }
+
+                        pixelsDone += tileRect.width * tileRect.height;
+                        float currentProgress = 100.0F * pixelsDone / (totalPixels * bandsToWrite);
+                        if (currentProgress > progressStep * PROGRESS_FACTOR_MULTIPLIER) {
+                            processImageProgress(currentProgress);
+                            progressStep++;
+                        }
+
+                        // Fill in the offset and byte count for the file
+                        stream.mark();
+                        stream.seek(stripOrTileOffsetsPosition);
+
+                        if (!isBtiff) {
+                            stream.writeInt((int) pos);
+                            stripOrTileOffsetsPosition += 4;
+
+                            stream.seek(stripOrTileByteCountsPosition);
+                            stream.writeInt(byteCount);
+                            stripOrTileByteCountsPosition += 4;
+                        } else {
+                            stream.writeLong(pos);
+                            stripOrTileOffsetsPosition += 8;
+
+                            stream.seek(stripOrTileByteCountsPosition);
+                            stream.writeLong(byteCount);
+                            stripOrTileByteCountsPosition += 8;
+                        }
+                        stream.reset();
+                    } catch (IOException e) {
+                        throw new IIOException("I/O error writing TIFF file!", e);
                     }
 
-                    pixelsDone += tileRect.width * tileRect.height;
-                    float currentProgress = 100.0F * pixelsDone / totalPixels;
-                    if (currentProgress > progressStep * PROGRESS_FACTOR_MULTIPLIER){
-                        processImageProgress(currentProgress);
-                        progressStep++;
+                    if (abortRequested()) {
+                        processWriteAborted();
+                        return;
                     }
-        
-                    // Fill in the offset and byte count for the file
-                    stream.mark();
-                    stream.seek(stripOrTileOffsetsPosition);
-                    
-                    if(!isBtiff){
-	                    stream.writeInt((int)pos);
-	                    stripOrTileOffsetsPosition += 4;
-	                    
-	                    stream.seek(stripOrTileByteCountsPosition);
-	                    stream.writeInt(byteCount);
-	                    stripOrTileByteCountsPosition += 4;
-                    } else {
-	                    stream.writeLong(pos);
-	                    stripOrTileOffsetsPosition += 8;
-	                    
-	                    stream.seek(stripOrTileByteCountsPosition);
-	                    stream.writeLong(byteCount);
-	                    stripOrTileByteCountsPosition += 8;
-                    }
-                    stream.reset();
-                } catch (IOException e) {
-                    throw new IIOException("I/O error writing TIFF file!", e);
-                }
-
-                if (abortRequested()) {
-                    processWriteAborted();
-                    return;
                 }
             }
         }
-        
         processImageComplete();
     }
 
@@ -3815,106 +3837,115 @@ public class TIFFImageWriter extends ImageWriter {
                 encoder.setStream(stream);
                 encoder.setMetadata(this.imageMetadata);
 
-                Rectangle tileRect = new Rectangle();
-                for(int ty = minTileY; ty <= maxTileY; ty++) {
-                    for(int tx = minTileX; tx <= maxTileX; tx++) {
-                        int tileIndex = ty*tilesAcross + tx;
-                        boolean isEmpty =
-                            replacePixelsByteCounts[tileIndex] == 0L;
-                        WritableRaster raster;
-                        if(isEmpty) {
-                            SampleModel tileSM =
-                                sm.createCompatibleSampleModel(tileWidth,
-                                                               tileLength);
-                            raster = Raster.createWritableRaster(tileSM, null);
-                        } else {
-                            BufferedImage tileImage =
-                                reader.readTile(replacePixelsIndex, tx, ty);
-                            raster = tileImage.getRaster();
-                        }
-
-                        tileRect.setLocation(tx*tileWidth,
-                                             ty*tileLength);
-                        tileRect.setSize(raster.getWidth(),
-                                         raster.getHeight());
-                        raster =
-                            raster.createWritableTranslatedChild(tileRect.x,
-                                                                 tileRect.y);
-
-                        Rectangle replacementRect =
-                            tileRect.intersection(dstRect);
-
-                        int srcMinX =
-                            (replacementRect.x - dstOffset.x)*subPeriodX +
-                            subOriginX;
-                        int srcXmax = 
-                            (replacementRect.x + replacementRect.width - 1 -
-                             dstOffset.x)*subPeriodX + subOriginX;
-                        int srcWidth = srcXmax - srcMinX + 1;
-        
-                        int srcMinY =
-                            (replacementRect.y - dstOffset.y)*subPeriodY +
-                            subOriginY;
-                        int srcYMax =
-                            (replacementRect.y + replacementRect.height - 1 -
-                             dstOffset.y)*subPeriodY + subOriginY;
-                        int srcHeight = srcYMax - srcMinY + 1;
-                        Rectangle srcTileRect =
-                            new Rectangle(srcMinX, srcMinY,
-                                          srcWidth, srcHeight);
-
-                        Raster replacementData = image.getData(srcTileRect);
-                        if(subPeriodX == 1 && subPeriodY == 1 &&
-                           subOriginX == 0 && subOriginY == 0) {
-                            replacementData =
-                                replacementData.createChild(srcTileRect.x,
-                                                            srcTileRect.y,
-                                                            srcTileRect.width,
-                                                            srcTileRect.height,
-                                                            replacementRect.x,
-                                                            replacementRect.y,
-                                                            sourceBands);
-                        } else {
-                            replacementData = subsample(replacementData,
-                                                        sourceBands,
-                                                        subOriginX,
-                                                        subOriginY,
-                                                        subPeriodX,
-                                                        subPeriodY,
-                                                        dstOffset.x,
-                                                        dstOffset.y,
-                                                        replacementRect);
-                            if(replacementData == null) {
-                                continue;
+                int bandsToWrite = isPixelInterleaved ? 1 : this.numBands;
+                for (int imageIndex = 0; imageIndex < bandsToWrite; imageIndex++) {
+                    Rectangle tileRect = new Rectangle();
+                    for(int ty = minTileY; ty <= maxTileY; ty++) {
+                        for(int tx = minTileX; tx <= maxTileX; tx++) {
+                            int tileIndex = ty*tilesAcross + tx;
+                            boolean isEmpty =
+                                    replacePixelsByteCounts[tileIndex] == 0L;
+                            WritableRaster raster;
+                            if(isEmpty) {
+                                SampleModel tileSM =
+                                        sm.createCompatibleSampleModel(tileWidth,
+                                                                       tileLength);
+                                raster = Raster.createWritableRaster(tileSM, null);
+                            } else {
+                                BufferedImage tileImage =
+                                        reader.readTile(replacePixelsIndex, tx, ty);
+                                raster = tileImage.getRaster();
                             }
-                        }
 
-                        raster.setRect(replacementData);
+                            tileRect.setLocation(tx*tileWidth,
+                                                 ty*tileLength);
+                            tileRect.setSize(raster.getWidth(),
+                                             raster.getHeight());
+                            raster =
+                                    raster.createWritableTranslatedChild(tileRect.x,
+                                                                         tileRect.y);
 
-                        if(isEmpty) {
-                            stream.seek(nextSpace);
-                        } else {
-                            stream.seek(replacePixelsTileOffsets[tileIndex]);
-                        }
+                            Rectangle replacementRect =
+                                    tileRect.intersection(dstRect);
 
-                        this.image = new SingleTileRenderedImage(raster, cm);
+                            int srcMinX =
+                                    (replacementRect.x - dstOffset.x)*subPeriodX +
+                                            subOriginX;
+                            int srcXmax =
+                                    (replacementRect.x + replacementRect.width - 1 -
+                                            dstOffset.x)*subPeriodX + subOriginX;
+                            int srcWidth = srcXmax - srcMinX + 1;
 
-                        int numBytes = writeTile(tileRect, encoder);
+                            int srcMinY =
+                                    (replacementRect.y - dstOffset.y)*subPeriodY +
+                                            subOriginY;
+                            int srcYMax =
+                                    (replacementRect.y + replacementRect.height - 1 -
+                                            dstOffset.y)*subPeriodY + subOriginY;
+                            int srcHeight = srcYMax - srcMinY + 1;
+                            Rectangle srcTileRect =
+                                    new Rectangle(srcMinX, srcMinY,
+                                                  srcWidth, srcHeight);
 
-                        if(isEmpty) {
-                            // Update Strip/TileOffsets and
-                            // Strip/TileByteCounts fields.
-                            stream.mark();
-                            stream.seek(replacePixelsOffsetsPosition +
-                                        4*tileIndex);
-                            stream.writeInt((int)nextSpace);
-                            stream.seek(replacePixelsByteCountsPosition +
-                                        4*tileIndex);
-                            stream.writeInt(numBytes);
-                            stream.reset();
+                            Raster replacementData = image.getData(srcTileRect);
+                            final int[] sbands;
+                            if (isPixelInterleaved) {
+                                sbands = sourceBands;
+                            } else {
+                                sbands = new int[]{sourceBands[imageIndex]};
+                            }
+                            if(subPeriodX == 1 && subPeriodY == 1 &&
+                                    subOriginX == 0 && subOriginY == 0) {
+                                replacementData =
+                                        replacementData.createChild(srcTileRect.x,
+                                                                    srcTileRect.y,
+                                                                    srcTileRect.width,
+                                                                    srcTileRect.height,
+                                                                    replacementRect.x,
+                                                                    replacementRect.y,
+                                                                    sbands);
+                            } else {
+                                replacementData = subsample(replacementData,
+                                                            sbands,
+                                                            subOriginX,
+                                                            subOriginY,
+                                                            subPeriodX,
+                                                            subPeriodY,
+                                                            dstOffset.x,
+                                                            dstOffset.y,
+                                                            replacementRect);
+                                if(replacementData == null) {
+                                    continue;
+                                }
+                            }
 
-                            // Increment location of next available space.
-                            nextSpace += numBytes;
+                            raster.setRect(replacementData);
+
+                            if(isEmpty) {
+                                stream.seek(nextSpace);
+                            } else {
+                                stream.seek(replacePixelsTileOffsets[tileIndex]);
+                            }
+
+                            this.image = new SingleTileRenderedImage(raster, cm);
+
+                            int numBytes = writeTile(tileRect, imageIndex, encoder);
+
+                            if(isEmpty) {
+                                // Update Strip/TileOffsets and
+                                // Strip/TileByteCounts fields.
+                                stream.mark();
+                                stream.seek(replacePixelsOffsetsPosition +
+                                                    4 * tileIndex);
+                                stream.writeInt((int) nextSpace);
+                                stream.seek(replacePixelsByteCountsPosition +
+                                                    4 * tileIndex);
+                                stream.writeInt(numBytes);
+                                stream.reset();
+
+                                // Increment location of next available space.
+                                nextSpace += numBytes;
+                            }
                         }
                     }
                 }

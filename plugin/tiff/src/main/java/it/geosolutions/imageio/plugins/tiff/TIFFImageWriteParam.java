@@ -75,8 +75,6 @@ package it.geosolutions.imageio.plugins.tiff;
 
 import it.geosolutions.imageioimpl.plugins.tiff.TIFFImageWriter;
 
-import java.util.Arrays;
-import java.util.List;
 import java.util.Locale;
 import javax.imageio.ImageWriteParam;
 
@@ -202,6 +200,8 @@ public class TIFFImageWriteParam extends ImageWriteParam {
     private boolean appendedCompressionType = false;
     
     private boolean forceToBigTIFF = false;
+    
+    private boolean pixelInterleaved = true;
 
     public boolean isForceToBigTIFF() {
 		return forceToBigTIFF;
@@ -415,5 +415,26 @@ public class TIFFImageWriteParam extends ImageWriteParam {
      */
     public void unsetColorConverter() {
         this.colorConverter = null;
+    }
+
+    /**
+     * Returns <code>true</code>, if the image should be written in pixel interleaved format.
+     * Return <code>false</code>, if the image should be written in band interleaved format.
+     * 
+     * @return whether the image should be in pixel interleaved format.
+     */
+    public boolean isPixelInterleaved() {
+        return pixelInterleaved;
+    }
+
+    /**
+     * Set the format to either pixel or band interleaved.
+     * 
+     * @see #isPixelInterleaved()
+     * 
+     * @param pixelInterleaved  if pixel interleaved format.
+     */
+    public void setPixelInterleaved(boolean pixelInterleaved) {
+        this.pixelInterleaved = pixelInterleaved;
     }
 }
