@@ -1,9 +1,8 @@
-.svn
-.classpath
 .project
+.classpath
 .settings
+target
+*.patch
+*.class
+*.pyc
 *.iml
-.idea
-trace.db
-*/target/*
-target/
