@@ -7,12 +7,12 @@
   <parent>
     <groupId>it.geosolutions.imageio-ext</groupId>
     <artifactId>imageio-ext</artifactId>
-    <version>1.2.1-SNAP</version>
+    <version>1.2.2-SNAPSHOT</version>
   </parent>
   <groupId>it.geosolutions.imageio-ext</groupId>
   <artifactId>imageio-ext-plugin</artifactId>
   <packaging>pom</packaging>
-  <version>1.2.1-SNAP</version>
+  <version>1.2.2-SNAPSHOT</version>
   <name>GeoSolutions Image I/O-Extensions plugins</name>
   <description>
     Image I/O-Extensions plugin modules.
@@ -74,7 +74,7 @@
          <property><name>all</name></property>
         </activation>      
       <modules>
-        <module>kakadujp2</module>
+<!--        <module>kakadujp2</module>-->
         <module>arcgrid</module>
         <module>tiff</module>
         <module>gdal</module>
