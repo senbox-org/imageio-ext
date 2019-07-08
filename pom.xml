@@ -323,17 +323,17 @@
     <!--                     Plugin Repositories                  -->
     <!-- ======================================================== -->
     <pluginRepositories>
-        <pluginRepository>
-            <id>codehaus.org</id>
-            <name>CodeHaus Plugin Snapshots</name>
-            <url>http://snapshots.repository.codehaus.org</url>
-            <releases>
-                <enabled>false</enabled>
-            </releases>
-            <snapshots>
-                <enabled>true</enabled>
-            </snapshots>
-        </pluginRepository>
+<!--        <pluginRepository>-->
+<!--            <id>codehaus.org</id>-->
+<!--            <name>CodeHaus Plugin Snapshots</name>-->
+<!--            <url>http://snapshots.repository.codehaus.org</url>-->
+<!--            <releases>-->
+<!--                <enabled>false</enabled>-->
+<!--            </releases>-->
+<!--            <snapshots>-->
+<!--                <enabled>true</enabled>-->
+<!--            </snapshots>-->
+<!--        </pluginRepository>-->
         <pluginRepository>
             <id>snap-repo-public</id>
             <name>Public Maven Repository for SNAP</name>
@@ -364,11 +364,11 @@
 <!--            <name>Codehaus maven repository</name>-->
 <!--            <url>http://repository.codehaus.org/</url>-->
 <!--        </repository>-->
-        <repository>
-            <id>jboss</id>
-            <name>jboss</name>
-            <url>http://repository.jboss.org/maven2/</url>
-        </repository>
+<!--        <repository>-->
+<!--            <id>jboss</id>-->
+<!--            <name>jboss</name>-->
+<!--            <url>http://repository.jboss.org/maven2/</url>-->
+<!--        </repository>-->
 <!--        <repository>-->
 <!--            <id>codehaus.org</id>-->
 <!--            <name>CodeHaus Snapshots</name>-->
@@ -380,11 +380,11 @@
 <!--                <enabled>true</enabled>-->
 <!--            </snapshots>-->
 <!--        </repository>-->
-        <repository>
-            <id>osgeo</id>
-            <name>Open Source Geospatial Foundation Repository</name>
-            <url>http://download.osgeo.org/webdav/geotools/</url>
-        </repository>
+<!--        <repository>-->
+<!--            <id>osgeo</id>-->
+<!--            <name>Open Source Geospatial Foundation Repository</name>-->
+<!--            <url>http://download.osgeo.org/webdav/geotools/</url>-->
+<!--        </repository>-->
 <!--        <repository>-->
 <!--            <snapshots>-->
 <!--                <enabled>true</enabled>-->
@@ -393,12 +393,12 @@
 <!--            <name>OpenGeo Maven Repository</name>-->
 <!--            <url>http://repo.opengeo.org</url>-->
 <!--        </repository>-->
-        <repository>
-            <id>maven2-repository.dev.java.net</id>
-            <name>Java.net Repository for Maven</name>
-            <url>http://download.java.net/maven/2/</url>
-            <layout>default</layout>
-        </repository>
+<!--        <repository>-->
+<!--            <id>maven2-repository.dev.java.net</id>-->
+<!--            <name>Java.net Repository for Maven</name>-->
+<!--            <url>http://download.java.net/maven/2/</url>-->
+<!--            <layout>default</layout>-->
+<!--        </repository>-->
         <repository>
             <id>snap-repo-public</id>
             <name>Public Maven Repository for SNAP</name>

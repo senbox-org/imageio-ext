@@ -79,7 +79,7 @@
         <module>tiff</module>
         <module>gdal</module>
         <module>turbojpeg</module>
-        <module>nitronitf</module>
+<!--        <module>nitronitf</module>-->
 		<module>png</module>
        </modules>
     </profile>
