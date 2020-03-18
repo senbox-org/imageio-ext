@@ -26,7 +26,7 @@
   <groupId>it.geosolutions.imageio-ext</groupId>
   <artifactId>imageio-ext</artifactId>
   <packaging>pom</packaging>
-  <version>1.3.2</version>
+  <version>1.3.2-SNAP</version>
   <name>GeoSolutions Image I/O-Extensions Library Root Project</name>
 
   <scm>
@@ -372,6 +372,19 @@
       <name>Boundless Maven Repository</name>
       <url>https://repo.boundlessgeo.com/main/</url>
     </repository>
+	<repository>
+            <id>snap-repo-public</id>
+            <name>Public Maven Repository for SNAP</name>
+            <url>https://snap-build-server.tilaa.cloud/nexus/repository/snap-maven-public/</url>
+            <releases>
+                <enabled>true</enabled>
+                <checksumPolicy>warn</checksumPolicy>
+            </releases>
+            <snapshots>
+                <enabled>true</enabled>
+                <checksumPolicy>warn</checksumPolicy>
+            </snapshots>
+        </repository>
   </repositories>
 
   <!--                                                                       -->
@@ -383,21 +396,33 @@
   <dependencyManagement>
     <dependencies>
      <!-- Tests or legacy -->
-     <dependency>
-        <groupId>javax.media</groupId>
-       <artifactId>jai_core</artifactId>
-       <version>1.1.3</version>
+	 <dependency>
+        <groupId>javax.media.jai</groupId>
+        <artifactId>jai-core-openjdk</artifactId>
+        <version>1.1.4</version>
+     </dependency>
+        <dependency>
+        <groupId>javax.media.jai</groupId>
+        <artifactId>jai-codec-openjdk</artifactId>
+        <version>1.1.4</version>
      </dependency>
      <dependency>
-       <groupId>javax.media</groupId>
-       <artifactId>jai_codec</artifactId>
-       <version>1.1.3</version>
+        <groupId>javax.media.jai</groupId>
+        <artifactId>mlibwrapper-jai-openjdk</artifactId>
+        <version>1.1.4</version>
      </dependency>
      <dependency>
-       <groupId>javax.media</groupId>
-       <artifactId>jai_imageio</artifactId>
-       <version>1.1</version>
-     </dependency>       
+          <!-- This artifact is build by our own. It fixes the vendorName == null! problem.
+               The issue is known to NetBeans but not fixed yet. https://netbeans.org/bugzilla/show_bug.cgi?id=247795 -->
+           <groupId>com.sun.media</groupId>
+           <artifactId>jai-imageio</artifactId>
+           <version>1.2-SNAP-20150402</version>
+      </dependency>
+      <dependency>
+           <groupId>com.sun.media</groupId>
+           <artifactId>clibwrapper-jiio</artifactId>
+           <version>1.2-20090918</version>
+      </dependency> 
       <dependency>
         <groupId>junit</groupId>
         <artifactId>junit</artifactId>
@@ -452,17 +477,21 @@
  <dependencies>
   <!-- Tests or legacy -->
   <dependency>
-	<groupId>javax.media</groupId>
-   <artifactId>jai_core</artifactId>
+	<groupId>javax.media.jai</groupId>
+   <artifactId>jai-core-openjdk</artifactId>
  </dependency>
  <dependency>
-   <groupId>javax.media</groupId>
-   <artifactId>jai_codec</artifactId>
+   <groupId>javax.media.jai</groupId>
+   <artifactId>jai-codec-openjdk</artifactId>
  </dependency>
  <dependency>
-   <groupId>javax.media</groupId>
-   <artifactId>jai_imageio</artifactId>
- </dependency>       
+   <groupId>com.sun.media</groupId>
+   <artifactId>jai-imageio</artifactId>
+ </dependency> 
+<dependency>
+   <groupId>com.sun.media</groupId>
+   <artifactId>clibwrapper-jiio</artifactId>
+ </dependency>  
   <dependency>
 	<groupId>junit</groupId>
 	<artifactId>junit</artifactId>
