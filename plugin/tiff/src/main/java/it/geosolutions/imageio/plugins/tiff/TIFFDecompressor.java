@@ -1182,12 +1182,12 @@ public abstract class TIFFDecompressor {
                     break;
                     
                 case 64:
-                    if(sampleFormat[0] ==
-                       BaselineTIFFTagSet.SAMPLE_FORMAT_FLOATING_POINT) {
+                    //if(sampleFormat[0] ==
+                    //   BaselineTIFFTagSet.SAMPLE_FORMAT_FLOATING_POINT) {
                         dataType = DataBuffer.TYPE_DOUBLE;
-                    }
-                    else
-                    	throw new IllegalStateException("Unsupported sample format for 64 bits data.");
+                    //}
+                    //else
+                    //	throw new IllegalStateException("Unsupported sample format for 64 bits data.");
                     isDataTypeSet = true;
                     break;                    
                 }
