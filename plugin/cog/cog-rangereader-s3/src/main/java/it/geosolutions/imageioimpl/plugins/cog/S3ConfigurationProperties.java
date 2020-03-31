@@ -43,6 +43,7 @@ public class S3ConfigurationProperties {
     private int corePoolSize;
     private int maxPoolSize;
     private int keepAliveTime;
+	private String requestPayer;
 
     public final String AWS_S3_USER_KEY;
     public final String AWS_S3_PASSWORD_KEY;
@@ -51,6 +52,7 @@ public class S3ConfigurationProperties {
     public final String AWS_S3_CORE_POOL_SIZE_KEY;
     public final String AWS_S3_MAX_POOL_SIZE_KEY;
     public final String AWS_S3_KEEP_ALIVE_TIME;
+	public final String AWS_S3_REQUEST_PAYER;
 
     private final static Logger LOGGER = Logger.getLogger(S3ConfigurationProperties.class.getName());
 
@@ -63,6 +65,7 @@ public class S3ConfigurationProperties {
         AWS_S3_CORE_POOL_SIZE_KEY = "IIO_" + this.alias + "_AWS_CORE_POOL_SIZE";
         AWS_S3_MAX_POOL_SIZE_KEY = "IIO_" + this.alias + "_AWS_MAX_POOL_SIZE";
         AWS_S3_KEEP_ALIVE_TIME = "IIO_" + this.alias + "_AWS_KEEP_ALIVE_TIME";
+		AWS_S3_REQUEST_PAYER = "IIO_" + this.alias + "_AWS_REQUEST_PAYER";
 
         user = PropertyLocator.getEnvironmentValue(AWS_S3_USER_KEY, null);
         password = PropertyLocator.getEnvironmentValue(AWS_S3_PASSWORD_KEY, null);
@@ -74,6 +77,7 @@ public class S3ConfigurationProperties {
                 PropertyLocator.getEnvironmentValue(AWS_S3_MAX_POOL_SIZE_KEY, "128"));
         keepAliveTime = Integer.parseInt(
                 PropertyLocator.getEnvironmentValue(AWS_S3_KEEP_ALIVE_TIME, "10"));
+		requestPayer = PropertyLocator.getEnvironmentValue(AWS_S3_REQUEST_PAYER, null);
 
         String userPass = uri.getUserInfo();
         if (userPass != null && !userPass.isEmpty()) {
@@ -184,5 +188,9 @@ public class S3ConfigurationProperties {
 
     public int getKeepAliveTime() {
         return keepAliveTime;
+    }
+	
+	public String getRequestPayer() {
+        return requestPayer;
     }
 }

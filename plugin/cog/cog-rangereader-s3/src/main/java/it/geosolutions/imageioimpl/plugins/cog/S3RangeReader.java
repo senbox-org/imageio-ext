@@ -72,7 +72,7 @@ public class S3RangeReader extends AbstractRangeReader {
         GetObjectRequest headerRequest = GetObjectRequest.builder()
                 .bucket(configProps.getBucket())
                 .key(configProps.getKey())
-
+                .requestPayer(configProps.getRequestPayer())
                 .range("bytes=0-" + (headerLength - 1))
                 .build();
         try {
@@ -103,6 +103,7 @@ public class S3RangeReader extends AbstractRangeReader {
             GetObjectRequest request = GetObjectRequest.builder()
                     .bucket(configProps.getBucket())
                     .key(configProps.getKey())
+					.requestPayer(configProps.getRequestPayer())
                     .range("bytes=" + ranges[i][0] + "-" + ranges[i][1])
                     .build();
             CompletableFuture<ResponseBytes<GetObjectResponse>> futureGet =
